@@ -47,19 +47,45 @@ export $(cat .env | xargs)   # or use a process manager that loads .env
 python main.py
 ```
 
-## Deploying on Render
+## Deploying on Render — FREE tier
+
+Render's free tier only offers **Web Services**, not Background Workers,
+and free Web Services spin down after ~15 minutes without HTTP traffic.
+This repo works around both limits:
+
+- `keep_alive.py` runs a tiny HTTP server (`/health`) alongside the bot,
+  so Render can treat it as a Web Service.
+- You then use a **free external pinger** (e.g. [UptimeRobot](https://uptimerobot.com))
+  to hit that `/health` URL every 5 minutes, so Render never sees 15
+  idle minutes and never spins the instance down.
+
+Steps:
 
 1. Push this folder to your own GitHub repo.
-2. On Render: **New → Blueprint** → point it at your repo (uses `render.yaml`).
-   Alternatively: **New → Background Worker** → connect repo → Environment: Docker.
-3. Fill in the environment variables Render prompts for (the ones marked
-   `sync: false` in `render.yaml`): `API_ID`, `API_HASH`, `BOT_TOKEN`,
-   `SESSION_STRING`, `OWNER_ID`, `SUDO_USERS`, `ACCESS_KEYS`.
-4. Deploy. Render builds the Docker image (includes ffmpeg) and starts
-   `python main.py` as a long-running worker — this is what gives you
-   24/7 uptime as long as your Render plan keeps the worker running
-   (free-tier workers on Render can spin down on inactivity — use a
-   paid worker plan for guaranteed always-on hosting).
+2. On Render: **New → Blueprint** → point it at your repo (uses `render.yaml`,
+   already set to `plan: free`, `type: web`).
+3. Fill in the environment variables Render prompts for: `API_ID`,
+   `API_HASH`, `BOT_TOKEN`, `SESSION_STRING`, `OWNER_ID`, `SUDO_USERS`,
+   `ACCESS_KEYS`.
+4. Deploy. Once live, Render gives you a public URL like
+   `https://uniceif-music-bot.onrender.com`.
+5. Go to [UptimeRobot](https://uptimerobot.com) (free account) → **Add
+   New Monitor** → HTTP(s) → paste `https://your-app.onrender.com/health`
+   → interval **5 minutes**.
+
+### Honest limits of the free path
+
+- Render's free plan gives ~512MB RAM and a fraction of a CPU core —
+  audio is fine, but `/vplay` (video) may lag or crash under load.
+- Render's free tier has a **monthly usage cap** (Render enforces this
+  account-wide, not per-service) — check your current limit in Render's
+  dashboard, since it changes over time.
+- The ping trick keeps the process alive, but if Render ever tightens
+  this policy, it could stop working — it's a workaround, not a
+  guarantee, and I can't promise it'll hold forever.
+- For genuinely rock-solid 24/7 hosting, a small **paid** Render worker,
+  or a free-forever VPS tier (e.g. Oracle Cloud's Always Free instances),
+  is more reliable than any free-tier keep-alive trick.
 
 ## Commands
 
