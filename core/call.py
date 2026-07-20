@@ -11,7 +11,7 @@ import logging
 
 from pytgcalls import PyTgCalls
 from pytgcalls.types import MediaStream, AudioQuality, VideoQuality
-from pytgcalls.exceptions import NoActiveGroupCall, AlreadyJoinedError
+from pytgcalls.exceptions import NoActiveGroupCall  # AlreadyJoinedError removed
 
 from helpers.queue import queue_manager
 from config import AUTO_LEAVE_SECONDS
@@ -37,9 +37,7 @@ class CallManager:
             video_flags=MediaStream.Flags.IGNORE,
         )
         try:
-            await self.pytgcalls.play(chat_id, stream)
-        except AlreadyJoinedError:
-            await self.pytgcalls.play(chat_id, stream)  # play() also handles track change
+            await self.pytgcalls.play(chat_id, stream)  # Automatically joins and plays
         except NoActiveGroupCall:
             raise RuntimeError(
                 "No active voice chat in this group. Start one first, then try again."
@@ -54,9 +52,7 @@ class CallManager:
             video_parameters=VideoQuality.FHD_720p if high_quality else VideoQuality.SD_480p,
         )
         try:
-            await self.pytgcalls.play(chat_id, stream)
-        except AlreadyJoinedError:
-            await self.pytgcalls.play(chat_id, stream)
+            await self.pytgcalls.play(chat_id, stream)  # Automatically joins and plays
         except NoActiveGroupCall:
             raise RuntimeError(
                 "No active video chat in this group. Start one first, then try again."
@@ -80,7 +76,7 @@ class CallManager:
     async def leave(self, chat_id: int):
         try:
             await self.pytgcalls.leave_call(chat_id)
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.warning("Leave call issue on %s: %s", chat_id, e)
         queue_manager.clear(chat_id)
         self._cancel_idle_timer(chat_id)
@@ -108,7 +104,7 @@ class CallManager:
             queue_manager.set_playing(chat_id, next_track)
             try:
                 await self.join_and_play(chat_id, next_track["stream_url"])
-            except Exception as e:  # noqa: BLE001
+            except Exception as e:
                 logger.error("Failed to auto-advance queue in %s: %s", chat_id, e)
                 queue_manager.set_playing(chat_id, None)
                 self._schedule_idle_leave(chat_id)
