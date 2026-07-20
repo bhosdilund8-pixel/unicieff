@@ -26,7 +26,7 @@ class CallManager:
 
     async def start(self):
         await self.pytgcalls.start()
-        self.pytgcalls.on_stream_end()(self._on_stream_end)
+        # No on_stream_end decorator – we pass the callback directly to play()
         logger.info("PyTgCalls engine started.")
 
     async def join_and_play(self, chat_id: int, stream_url: str, high_quality: bool = True):
@@ -37,7 +37,11 @@ class CallManager:
             video_flags=MediaStream.Flags.IGNORE,
         )
         try:
-            await self.pytgcalls.play(chat_id, stream)
+            await self.pytgcalls.play(
+                chat_id,
+                stream,
+                stream_end_callback=self._on_stream_end
+            )
         except NoActiveGroupCall:
             raise RuntimeError(
                 "No active voice chat in this group. Start one first, then try again."
@@ -52,7 +56,11 @@ class CallManager:
             video_parameters=VideoQuality.FHD_720p if high_quality else VideoQuality.SD_480p,
         )
         try:
-            await self.pytgcalls.play(chat_id, stream)
+            await self.pytgcalls.play(
+                chat_id,
+                stream,
+                stream_end_callback=self._on_stream_end
+            )
         except NoActiveGroupCall:
             raise RuntimeError(
                 "No active video chat in this group. Start one first, then try again."
@@ -65,7 +73,11 @@ class CallManager:
             audio_parameters=AudioQuality.STUDIO if high_quality else AudioQuality.MEDIUM,
             video_flags=MediaStream.Flags.IGNORE,
         )
-        await self.pytgcalls.play(chat_id, stream)
+        await self.pytgcalls.play(
+            chat_id,
+            stream,
+            stream_end_callback=self._on_stream_end
+        )
 
     async def pause(self, chat_id: int):
         await self.pytgcalls.pause(chat_id)
@@ -97,8 +109,11 @@ class CallManager:
         if AUTO_LEAVE_SECONDS > 0:
             self._idle_tasks[chat_id] = asyncio.create_task(_timer())
 
-    async def _on_stream_end(self, _, update):
-        chat_id = update.chat_id
+    async def _on_stream_end(self, chat_id: int, *args, **kwargs):
+        """
+        Called by py-tgcalls when a stream finishes.
+        The callback signature is (chat_id, update) but we ignore `update`.
+        """
         next_track = queue_manager.pop_next(chat_id)
         if next_track:
             queue_manager.set_playing(chat_id, next_track)
