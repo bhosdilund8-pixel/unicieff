@@ -11,7 +11,7 @@ import logging
 
 from pytgcalls import PyTgCalls
 from pytgcalls.types import MediaStream, AudioQuality, VideoQuality
-from pytgcalls.exceptions import NoActiveGroupCall, AlreadyJoinedError
+from pytgcalls.exceptions import NoActiveGroupCall
 
 from helpers.queue import queue_manager
 from config import AUTO_LEAVE_SECONDS
@@ -38,8 +38,6 @@ class CallManager:
         )
         try:
             await self.pytgcalls.play(chat_id, stream)
-        except AlreadyJoinedError:
-            await self.pytgcalls.play(chat_id, stream)  # play() also handles track change
         except NoActiveGroupCall:
             raise RuntimeError(
                 "No active voice chat in this group. Start one first, then try again."
@@ -54,8 +52,6 @@ class CallManager:
             video_parameters=VideoQuality.FHD_720p if high_quality else VideoQuality.SD_480p,
         )
         try:
-            await self.pytgcalls.play(chat_id, stream)
-        except AlreadyJoinedError:
             await self.pytgcalls.play(chat_id, stream)
         except NoActiveGroupCall:
             raise RuntimeError(
